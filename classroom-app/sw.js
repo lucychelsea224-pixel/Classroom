@@ -5,11 +5,14 @@
 // network round trip since they're live data, not static assets.
 // =================================================================
 
-const CACHE_NAME = "classroom-shell-v1";
+const CACHE_NAME = "classroom-shell-v2";
 
 const SHELL_FILES = [
   "classroom-dashboard.html",
   "classroom-admin.html",
+  "subject.html",
+  "notes.html",
+  "quiz.html",
   "login.html",
   "signup.html",
   "admin-login.html",
