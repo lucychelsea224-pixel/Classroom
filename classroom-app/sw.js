@@ -3,6 +3,7 @@
 // Caches the app shell (HTML/CSS/JS) so the app can OPEN offline.
 // It never caches Supabase requests — those always need a real
 // network round trip since they're live data, not static assets.
+// python3 -m http.server 8000
 // =================================================================
 
 const CACHE_NAME = "classroom-shell-v2";
