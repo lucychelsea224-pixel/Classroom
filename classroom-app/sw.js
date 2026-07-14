@@ -6,7 +6,7 @@
 
 // 1. INCREMENT THIS VERSION whenever you make updates to your app.
 // The code below will automatically trigger a clean, silent browser reload for the end-user!
-const CACHE_NAME = "classroom-shell-v5";
+const CACHE_NAME = "classroom-shell-v6";
 
 // 2. DYNAMIC PATH RESOLUTION
 // This finds where sw.js is (e.g. '/' or '/classroom-app/') so paths never break.
@@ -83,7 +83,20 @@ self.addEventListener("fetch", (event) => {
           
           // Case A: User is trying to load a page, send them to the offline page
           if (request.mode === "navigate") {
-            return caches.match(`${BASE_PATH}offline.html`);
+            return caches.match(`${BASE_PATH}offline.html`).then((offlineResponse) => {
+              // If offline.html is in cache, return it. Otherwise, return emergency inline HTML.
+              return offlineResponse || new Response(
+                `<!DOCTYPE html>
+                <html lang="en">
+                <head><meta charset="UTF-8"><title>Offline</title><style>body{background:#2d2d2d;color:#f4f2ee;font-family:sans-serif;text-align:center;padding:50px;}</style></head>
+                <body><h1>You are offline</h1><p>Please check your connection and try again.</p></body>
+                </html>`,
+                {
+                  status: 200,
+                  headers: { "Content-Type": "text/html" }
+                }
+              );
+            });
           }
 
           // Case B: Static asset (image/CSS/JS) is missing offline, return a clean 408
