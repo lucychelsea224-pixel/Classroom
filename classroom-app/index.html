@@ -52,16 +52,16 @@
     // 2. Automated & clean Service Worker registration
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').then((reg) => {
-        // Listen for updates to the service worker file
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener('statechange', () => {
-            // If a new service worker is active and waiting, reload to apply changes seamlessly
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              window.location.reload();
-            }
-          });
-        });
+        // Force a check for updates on every page view
+        reg.update();
+      });
+
+      // Prevent infinite reload loops during activation transitions
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
       });
     }
   </script>
