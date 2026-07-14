@@ -88,7 +88,7 @@ self.addEventListener("fetch", (event) => {
 
           // Case B: Static asset (image/CSS/JS) is missing offline, return a clean 408
           // instead of a raw connection failure (this stops ERR_FAILED completely)
-          return new Response("Network offline or asset missing.", {
+          return new Response("Offline", {
             status: 408,
             headers: { "Content-Type": "text/plain" }
           });
