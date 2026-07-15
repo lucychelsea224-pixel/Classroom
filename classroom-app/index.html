@@ -40,7 +40,8 @@
   </div>
 
   <script>
-    // 1. Session check & redirect sequence
+    registerServiceWorker();
+
     (async () => {
       // requireUser() redirects to login.html on its own if there's no
       // session, so we only need to handle the "already logged in" case.
@@ -48,45 +49,6 @@
       if (!user) return;
       window.location.href = "classroom-dashboard.html";
     })();
-
-    // 2. Automated Deep-Refresh Service Worker registration
-    if ('serviceWorker' in navigator) {
-      // Register with updateViaCache: 'none' to bypass local cache for sw.js itself
-      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
-        .then((reg) => {
-          // Immediately check the server for updates on load
-          reg.update();
-
-          // If a new worker is already installed and waiting, tell it to take over
-          if (reg.waiting) {
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-
-          // Monitor for new incoming service workers installing in the background
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                // If a new service worker finishes installing and is waiting, activate it
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  newWorker.postMessage({ type: 'SKIP_WAITING' });
-                }
-              });
-            }
-          });
-        })
-        .catch((err) => {
-          console.error("Service Worker registration failed:", err);
-        });
-
-      // Force a full, fresh reload the instant a new controller claims the page
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
-      });
-    }
   </script>
 </body>
 </html>

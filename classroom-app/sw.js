@@ -1,15 +1,17 @@
 // =================================================================
 // Classroom Service Worker
-// Caches the app shell (HTML/CSS/JS) so the app can OPEN offline.
-// Automatically adapts to subfolders & handles network failures gracefully.
+// Caches the app shell (HTML/CSS/JS) so the app can open offline.
+//
+// IMPORTANT: navigations use a NETWORK-FIRST strategy — an online
+// user always gets the freshest page, and the cache is only used as
+// a fallback when there's no connection. This avoids ever serving a
+// stale or broken cached page to someone who's actually online.
 // =================================================================
 
-// 1. INCREMENT THIS VERSION whenever you make updates to your app.
-// The code below will automatically trigger a clean, silent browser reload for the end-user!
-const CACHE_NAME = "classroom-shell-v6";
+const CACHE_NAME = "classroom-shell-v7";
 
-// 2. DYNAMIC PATH RESOLUTION
-// This finds where sw.js is (e.g. '/' or '/classroom-app/') so paths never break.
+// Finds where sw.js is served from (e.g. '/' or '/classroom-app/')
+// so every cached URL resolves correctly regardless of subfolder.
 const BASE_PATH = self.location.pathname.substring(0, self.location.pathname.lastIndexOf('/') + 1);
 
 const SHELL_FILES = [
@@ -28,84 +30,96 @@ const SHELL_FILES = [
   "offline-store.js",
   "manifest.json",
   "icon.svg"
-].map(file => `${BASE_PATH}${file}`); // Dynamically prefixes assets with the correct directory path
+].map(file => `${BASE_PATH}${file}`);
 
-// 3. INSTALL EVENT
-// Downloads all shell files and forces the worker to activate immediately.
+// ---- INSTALL ----
+// Fetches each shell file individually (not cache.addAll, which is
+// all-or-nothing) so one bad file can't break the whole install.
+// Any response that came through a redirect is rebuilt into a plain
+// Response before storing — Chrome refuses to use a *redirected*
+// cached Response to answer a page navigation and throws ERR_FAILED,
+// which is what was breaking every page load until a hard refresh.
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(SHELL_FILES))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await Promise.all(SHELL_FILES.map(async (url) => {
+      try {
+        const response = await fetch(url, { cache: "reload" });
+        if (!response.ok) return;
+        const safe = response.redirected
+          ? new Response(await response.blob(), {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers
+            })
+          : response;
+        await cache.put(url, safe);
+      } catch (err) {
+        console.warn("[sw] precache skipped:", url, err);
+      }
+    }));
+    self.skipWaiting();
+  })());
 });
 
-// 4. ACTIVATE EVENT
-// Clears out any old caches and claims control over all active browser tabs instantly.
+// ---- ACTIVATE ----
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      ))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
-// 5. FETCH EVENT
-// Smart caching logic with safe fallbacks that prevent ERR_FAILED crashes.
+// ---- FETCH ----
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  // Only handle GETs — never intercept Supabase writes (POST/PATCH/DELETE)
   if (request.method !== "GET") return;
 
-  // Live data always goes straight to the network, never the cache
-  if (request.url.includes("supabase.co")) return;
+  // Never intercept cross-origin requests (Supabase API, the
+  // supabase-js CDN script, fonts, etc.) — let the browser handle
+  // those exactly as it normally would.
+  if (new URL(request.url).origin !== self.location.origin) return;
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      // Return the cached file instantly if we have it
-      if (cached) return cached;
+  // Page navigations: network-first.
+  if (request.mode === "navigate") {
+    event.respondWith((async () => {
+      try {
+        const fresh = await fetch(request);
+        if (fresh.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(request, fresh.clone()).catch(() => {});
+        }
+        return fresh;
+      } catch (err) {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        const offline = await caches.match(`${BASE_PATH}offline.html`);
+        return offline || new Response(
+          "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Offline</title>" +
+          "<style>body{background:#2d2d2d;color:#f4f2ee;font-family:sans-serif;text-align:center;padding:50px;}</style>" +
+          "</head><body><h1>You're offline</h1><p>Please check your connection and try again.</p></body></html>",
+          { status: 200, headers: { "Content-Type": "text/html" } }
+        );
+      }
+    })());
+    return;
+  }
 
-      // Otherwise, fetch it from the network
-      return fetch(request)
-        .then((response) => {
-          // Dynamic safety check: Only cache valid local page resources
-          if (response.ok && request.url.startsWith(self.location.origin)) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => {
-          // --- BULLETPROOF OFFLINE FALLBACKS ---
-          
-          // Case A: User is trying to load a page, send them to the offline page
-          if (request.mode === "navigate") {
-            return caches.match(`${BASE_PATH}offline.html`).then((offlineResponse) => {
-              // If offline.html is in cache, return it. Otherwise, return emergency inline HTML.
-              return offlineResponse || new Response(
-                `<!DOCTYPE html>
-                <html lang="en">
-                <head><meta charset="UTF-8"><title>Offline</title><style>body{background:#2d2d2d;color:#f4f2ee;font-family:sans-serif;text-align:center;padding:50px;}</style></head>
-                <body><h1>You are offline</h1><p>Please check your connection and try again.</p></body>
-                </html>`,
-                {
-                  status: 200,
-                  headers: { "Content-Type": "text/html" }
-                }
-              );
-            });
-          }
-
-          // Case B: Static asset (image/CSS/JS) is missing offline, return a clean 408
-          // instead of a raw connection failure (this stops ERR_FAILED completely)
-          return new Response("Offline", {
-            status: 408,
-            headers: { "Content-Type": "text/plain" }
-          });
-        });
-    })
-  );
+  // Everything else (CSS/JS/icons): cache-first, network fallback.
+  event.respondWith((async () => {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    try {
+      const response = await fetch(request);
+      if (response.ok) {
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(request, response.clone()).catch(() => {});
+      }
+      return response;
+    } catch (err) {
+      return new Response("Offline", { status: 408, headers: { "Content-Type": "text/plain" } });
+    }
+  })());
 });
