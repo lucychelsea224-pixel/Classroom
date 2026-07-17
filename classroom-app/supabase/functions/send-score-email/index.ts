@@ -62,7 +62,6 @@ Deno.serve(async (req) => {
     const message = percent < 30 ? pickRandom(ENCOURAGEMENT_MESSAGES) : pickRandom(GOOD_JOB_MESSAGES);
     const htmlContent = buildEmailHtml({ fullName, subjectName, testNumber, correct, total, percent, message });
 
-    // Payload structured perfectly for EmailJS REST API
     const payload = {
       service_id: SERVICE_ID,
       template_id: TEMPLATE_ID,
