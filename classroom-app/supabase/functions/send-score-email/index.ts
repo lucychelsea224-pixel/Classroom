@@ -1,5 +1,5 @@
 // =================================================================
-// Supabase Edge Function: send-score-email (EmailJS Production)
+// Supabase Edge Function: send-score-email (Debug Edition)
 // =================================================================
 
 const SERVICE_ID = Deno.env.get("EMAILJS_SERVICE_ID");
@@ -50,9 +50,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, fullName, subjectName, testNumber, correct, total, percent } = await req.json();
+    // Log active credentials to ensure they aren't blank
+    console.log("Checking keys -> Service ID:", SERVICE_ID ? "LOADED" : "MISSING", "Template ID:", TEMPLATE_ID ? "LOADED" : "MISSING", "Public Key:", PUBLIC_KEY ? "LOADED" : "MISSING");
+
+    const body = await req.json();
+    console.log("Incoming Payload Data:", JSON.stringify(body));
+
+    const { email, fullName, subjectName, testNumber, correct, total, percent } = body;
 
     if (!email || !subjectName || correct === undefined || total === undefined || percent === undefined) {
+      console.error("Validation Failed: Missing required parameters.");
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -81,13 +88,16 @@ Deno.serve(async (req) => {
 
     if (!emailRes.ok) {
       const errorText = await emailRes.text();
+      console.error("EmailJS API rejected request:", errorText);
       throw new Error(`EmailJS failed: ${errorText}`);
     }
 
+    console.log("Email successfully dispatched to EmailJS!");
     return new Response(JSON.stringify({ ok: true, message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   } catch (err: any) {
+    console.error("CRITICAL FUNCTION ERROR:", err.message);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
