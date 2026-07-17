@@ -1,5 +1,8 @@
 // =================================================================
 // Classroom Service Worker
+//re_YAtov6xm_PGACvoJXNdUJbmRUjkTGQeSM
+//service_8e1zl5t
+//yydc knox mdne wfxa
 // Caches the app shell (HTML/CSS/JS) so the app can open offline.
 //
 // IMPORTANT: navigations use a NETWORK-FIRST strategy — an online
