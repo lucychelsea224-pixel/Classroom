@@ -1,5 +1,6 @@
 // =================================================================
 // Supabase Edge Function: send-score-email (Debug Edition)
+//hnsj
 // =================================================================
 
 const SERVICE_ID = Deno.env.get("EMAILJS_SERVICE_ID");
