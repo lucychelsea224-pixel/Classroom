@@ -1,11 +1,11 @@
 // =================================================================
-// Supabase Edge Function: send-score-email (Debug Edition)
-//hnsj
+// Supabase Edge Function: send-score-email (Strict Mode Production)
 // =================================================================
 
 const SERVICE_ID = Deno.env.get("EMAILJS_SERVICE_ID");
 const TEMPLATE_ID = Deno.env.get("EMAILJS_TEMPLATE_ID");
 const PUBLIC_KEY = Deno.env.get("EMAILJS_PUBLIC_KEY");
+const SECRET_KEY = Deno.env.get("EMAILJS_SECRET_KEY"); // Added for Strict Mode
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,16 +51,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Log active credentials to ensure they aren't blank
-    console.log("Checking keys -> Service ID:", SERVICE_ID ? "LOADED" : "MISSING", "Template ID:", TEMPLATE_ID ? "LOADED" : "MISSING", "Public Key:", PUBLIC_KEY ? "LOADED" : "MISSING");
-
     const body = await req.json();
-    console.log("Incoming Payload Data:", JSON.stringify(body));
-
     const { email, fullName, subjectName, testNumber, correct, total, percent } = body;
 
     if (!email || !subjectName || correct === undefined || total === undefined || percent === undefined) {
-      console.error("Validation Failed: Missing required parameters.");
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -74,6 +68,7 @@ Deno.serve(async (req) => {
       service_id: SERVICE_ID,
       template_id: TEMPLATE_ID,
       user_id: PUBLIC_KEY,
+      accessToken: SECRET_KEY, // Authorizes the strict mode request securely
       template_params: {
         to_email: email,
         subject_title: `Your ${subjectName} test result: ${correct}/${total}`,
@@ -89,12 +84,10 @@ Deno.serve(async (req) => {
 
     if (!emailRes.ok) {
       const errorText = await emailRes.text();
-      console.error("EmailJS API rejected request:", errorText);
       throw new Error(`EmailJS failed: ${errorText}`);
     }
 
-    console.log("Email successfully dispatched to EmailJS!");
-    return new Response(JSON.stringify({ ok: true, message }), {
+    return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   } catch (err: any) {
