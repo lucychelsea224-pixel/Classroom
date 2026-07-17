@@ -1,6 +1,5 @@
 // =================================================================
 // Classroom Service Worker
-
 // Caches the app shell (HTML/CSS/JS) so the app can open offline.
 //
 // IMPORTANT: navigations use a NETWORK-FIRST strategy — an online
