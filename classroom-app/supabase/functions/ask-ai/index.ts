@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
       throw new Error("Missing auth header — please log in.");
     }
 
-    // 3. Setup client client session context matching user tokens
+    // 3. Setup client session context matching user tokens
     const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
         outOfPoints: true,
         remaining: pointsResult?.remaining ?? 0
       }), {
-        status: 200, // Status 200 handles point exhaustion cleanly on frontend
+        status: 200, 
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
@@ -100,36 +100,44 @@ Deno.serve(async (req) => {
     // 6. Assemble context and clean messaging records for Gemini API structures
     const contextLine = subjectContext ? `The student is currently studying: ${subjectContext}.\n\n` : "";
     
-    const processedHistory = Array.isArray(history)
-      ? history
-          .filter(msg => msg && typeof msg === 'object')
-          .map(msg => {
-            let partsArray = [];
-            if (Array.isArray(msg.parts)) {
-              partsArray = msg.parts.map((p: any) => ({ text: p?.text ? String(p.text) : String(p) }));
-            } else if (msg.parts) {
-              partsArray = [{ text: String(msg.parts) }];
-            } else if (msg.text) {
-              partsArray = [{ text: String(msg.text) }];
-            } else {
-              partsArray = [{ text: "" }];
-            }
+    // Ultra-safe history normalization that will not crash regardless of frontend structure
+    const processedHistory = [];
+    if (Array.isArray(history)) {
+      for (const msg of history) {
+        if (!msg || typeof msg !== 'object') continue;
+        
+        let textContent = "";
+        
+        // Extract text safely from whatever structural format the frontend sent
+        if (typeof msg.text === 'string' && msg.text.trim()) {
+          textContent = msg.text;
+        } else if (Array.isArray(msg.parts) && msg.parts[0]) {
+          textContent = typeof msg.parts[0] === 'object' ? String(msg.parts[0].text || "") : String(msg.parts[0]);
+        } else if (msg.parts && typeof msg.parts === 'string') {
+          textContent = msg.parts;
+        }
+        
+        // Skip empty history frames
+        if (!textContent.trim()) continue;
 
-            return {
-              role: msg.role === "bot" || msg.role === "model" ? "model" : "user",
-              parts: partsArray
-            };
-          })
-          .filter(msg => msg.parts.length > 0 && msg.parts[0].text.trim().length > 0)
-          .slice(-8)
-      : [];
+        // Determine proper role
+        const role = msg.role === "bot" || msg.role === "model" || msg.role === "assistant" 
+          ? "model" 
+          : "user";
 
+        processedHistory.push({
+          role: role,
+          parts: [{ text: textContent.trim() }]
+        });
+      }
+    }
+    
     const contents = [
-      ...processedHistory,
+      ...processedHistory.slice(-6),
       { role: "user", parts: [{ text: contextLine + question }] }
     ];
 
-    // 7. Execute fetch invocation payload straight to Google Gemini Beta Endpoint
+    // 7. Execute fetch invocation payload straight to Google Gemini Endpoint
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -152,7 +160,7 @@ Deno.serve(async (req) => {
     
     if (!geminiResponse.ok) {
       console.error("Gemini API Connection Rejection details:", data);
-      throw new Error(`Gemini API error: ${data?.error?.message || geminiResponse.statusText} (Code: ${data?.error?.code || geminiResponse.status})`);
+      throw new Error(`Gemini API error: ${data?.error?.message || geminiResponse.statusText}`);
     }
 
     const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || 
