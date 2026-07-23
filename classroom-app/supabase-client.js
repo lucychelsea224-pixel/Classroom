@@ -56,7 +56,7 @@ async function logout(redirectTo) {
 // Paystack dashboard -> Settings -> API Keys & Webhooks.
 // The SECRET key never goes here — it only ever lives as a Supabase
 // Edge Function secret (see verify-payment).
-const PAYSTACK_PUBLIC_KEY = "pk_test_replace_with_your_public_key";
+const PAYSTACK_PUBLIC_KEY = "pk_live_a17bf22ac438d76c3352d8aa3ad2eb985fdf965b";
 
 // Price per currency, in the currency's main unit (e.g. Naira, not
 // kobo — the conversion to subunits happens automatically at
