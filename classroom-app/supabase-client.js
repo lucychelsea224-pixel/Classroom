@@ -57,7 +57,7 @@ async function logout(redirectTo) {
 // The SECRET key never goes here — it only ever lives as a Supabase
 // Edge Function secret (see verify-payment).
 const PAYSTACK_PUBLIC_KEY = "pk_test_replace_with_your_public_key";
-const GEMINI_API_KEY = "AQ.Ab8RN6LfvrNLB5S8YHcOnXdUqBvg3byGetklte3mClQ2B4bTVQ"
+
 // Price per currency, in the currency's main unit (e.g. Naira, not
 // kobo — the conversion to subunits happens automatically at
 // checkout time). Only currencies enabled on your Paystack dashboard
