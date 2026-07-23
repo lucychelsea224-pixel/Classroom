@@ -175,11 +175,13 @@
     if (!session) { window.location.href = "login.html"; return null; }
 
     const { data, error } = await supabaseClient.functions.invoke("ask-ai", {
-      body: { question, history },
-      headers: { Authorization: `Bearer ${session.access_token}` }
+      body: { question, history }
     });
 
-    if (error) throw new Error("Could not connect to Class Tutor. Please try again.");
+    if (error) {
+      console.error("Supabase Function Invoke Error:", error);
+      throw new Error(`Connection Error: ${error.message || "Could not reach Edge Function."}`);
+    }
     
     if (data?.error) {
       if (data.outOfPoints) updatePointsLabel(data.remaining);
@@ -187,6 +189,7 @@
       err.outOfPoints = !!data.outOfPoints;
       throw err;
     }
+    
     updatePointsLabel(data.remaining);
     return data.answer;
   }
@@ -229,7 +232,7 @@
       if (history.length > 12) history = history.slice(-12);
     } catch (err) {
       removeTypingIndicator();
-      addMessage(err.message || "Something went wrong. Please try again.", "bot", true);
+      addMessage(`⚠️ ${err.message}`, "bot", true);
     } finally {
       sendBtn.disabled = false;
     }
