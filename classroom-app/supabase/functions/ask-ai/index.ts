@@ -65,8 +65,16 @@ Deno.serve(async (req) => {
 
     const contextLine = subjectContext ? `The student is currently studying: ${subjectContext}.\n\n` : "";
     
+    // Safely structure and map array elements passed from the client session wrapper
+    const processedHistory = Array.isArray(history) 
+      ? history.filter(msg => msg && typeof msg === 'object' && msg.parts).map(msg => ({
+          role: msg.role === "bot" || msg.role === "model" ? "model" : "user",
+          parts: Array.isArray(msg.parts) ? msg.parts : [{ text: String(msg.parts) }]
+        })).slice(-8)
+      : [];
+
     const contents = [
-      ...(Array.isArray(history) ? history.slice(-8) : []),
+      ...processedHistory,
       { role: "user", parts: [{ text: contextLine + question }] }
     ];
 
