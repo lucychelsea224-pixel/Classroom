@@ -1,3 +1,11 @@
+// =================================================================
+// Supabase Edge Function: ask-ai
+//
+// A study-help chatbot for Classroom, backed by Google Gemini.
+// Handles dynamic interactive learning, subject context inputs,
+// context cleanup, and enforces structural daily point allowances.
+// =================================================================
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
@@ -23,54 +31,97 @@ Core Rules & Guardrails:
 - You do not have access to the student's actual notes or test questions in this app — if asked about specific internal structural content only their teacher or the app's internal developer notes would have, say so honestly rather than guessing.`;
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   try {
-    const { question, subjectContext, history } = await req.json();
-    if (!question || !question.trim()) {
-      return new Response(JSON.stringify({ error: "No question provided." }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
-
+    // 1. Verify environment secrets up front
     if (!GEMINI_API_KEY) {
+      console.error("Configuration Error: GEMINI_API_KEY environment variable is missing.");
       throw new Error("GEMINI_API_KEY environment secret is missing in Supabase vault.");
     }
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Missing auth header — please log in.");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
-    const supabaseUser = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("Configuration Error: Missing core Supabase environmental constants.");
+      throw new Error("Project environment keys (SUPABASE_URL/SUPABASE_ANON_KEY) are missing.");
+    }
+
+    // 2. Extract authorization payload safely
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Missing auth header — please log in.");
+    }
+
+    // 3. Setup client client session context matching user tokens
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
 
     const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
-    if (userErr || !user) throw new Error("Not authenticated.");
+    if (userErr || !user) {
+      console.error("Auth Error:", userErr);
+      throw new Error("Not authenticated.");
+    }
 
+    // 4. Parse incoming body data cleanly
+    const { question, subjectContext, history } = await req.json().catch(() => ({}));
+    if (!question || !question.trim()) {
+      return new Response(JSON.stringify({ error: "No question provided." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // 5. Deduct points via RPC before executing external AI stream calls
     const { data: pointsResult, error: pointsErr } = await supabaseUser
       .rpc("consume_ai_points", { cost: AI_MESSAGE_COST });
-    if (pointsErr) throw new Error(pointsErr.message);
+    
+    if (pointsErr) {
+      console.error("Database RPC error context:", pointsErr);
+      throw new Error(`Database point check failed: ${pointsErr.message}`);
+    }
 
-    if (!pointsResult?.allowed) {
+    if (!pointsResult || !pointsResult.allowed) {
       return new Response(JSON.stringify({
         error: pointsResult?.message || "Daily limit reached.",
         outOfPoints: true,
         remaining: pointsResult?.remaining ?? 0
       }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        status: 200, // Status 200 handles point exhaustion cleanly on frontend
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
+    // 6. Assemble context and clean messaging records for Gemini API structures
     const contextLine = subjectContext ? `The student is currently studying: ${subjectContext}.\n\n` : "";
     
-    // Safely structure and map array elements passed from the client session wrapper
-    const processedHistory = Array.isArray(history) 
-      ? history.filter(msg => msg && typeof msg === 'object' && msg.parts).map(msg => ({
-          role: msg.role === "bot" || msg.role === "model" ? "model" : "user",
-          parts: Array.isArray(msg.parts) ? msg.parts : [{ text: String(msg.parts) }]
-        })).slice(-8)
+    const processedHistory = Array.isArray(history)
+      ? history
+          .filter(msg => msg && typeof msg === 'object')
+          .map(msg => {
+            let partsArray = [];
+            if (Array.isArray(msg.parts)) {
+              partsArray = msg.parts.map((p: any) => ({ text: p?.text ? String(p.text) : String(p) }));
+            } else if (msg.parts) {
+              partsArray = [{ text: String(msg.parts) }];
+            } else if (msg.text) {
+              partsArray = [{ text: String(msg.text) }];
+            } else {
+              partsArray = [{ text: "" }];
+            }
+
+            return {
+              role: msg.role === "bot" || msg.role === "model" ? "model" : "user",
+              parts: partsArray
+            };
+          })
+          .filter(msg => msg.parts.length > 0 && msg.parts[0].text.trim().length > 0)
+          .slice(-8)
       : [];
 
     const contents = [
@@ -78,7 +129,8 @@ Deno.serve(async (req) => {
       { role: "user", parts: [{ text: contextLine + question }] }
     ];
 
-    const res = await fetch(
+    // 7. Execute fetch invocation payload straight to Google Gemini Beta Endpoint
+    const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
@@ -89,28 +141,34 @@ Deno.serve(async (req) => {
             parts: [{ text: SYSTEM_PROMPT }]
           },
           generationConfig: { 
-            temperature: 0.6, 
+            temperature: 0.5, 
             maxOutputTokens: 450 
           }
         })
       }
     );
 
-    const data = await res.json();
-    if (!res.ok) {
-      console.error("Gemini API Error details:", data);
-      throw new Error(`Gemini API error: ${data?.error?.message || res.statusText} (Code: ${data?.error?.code || res.status})`);
+    const data = await geminiResponse.json();
+    
+    if (!geminiResponse.ok) {
+      console.error("Gemini API Connection Rejection details:", data);
+      throw new Error(`Gemini API error: ${data?.error?.message || geminiResponse.statusText} (Code: ${data?.error?.code || geminiResponse.status})`);
     }
 
     const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || 
       "Sorry, I couldn't come up with an answer for that — try rephrasing your question.";
 
+    // 8. Send back the clean text response string alongside fresh remaining point metrics
     return new Response(JSON.stringify({ answer, remaining: pointsResult.remaining }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
+
   } catch (err) {
+    console.error("Fatal Runtime Error encountered inside Edge Function execution:", err.message);
     return new Response(JSON.stringify({ error: err.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
 });
