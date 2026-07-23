@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Log In · Classroom</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d2d2d">
+<style>
+  :root{
+    --bg: #2d2d2d; --card: #3d3d3d; --card-2: #464646; --border: #4a4a4a;
+    --ink: #f4f2ee; --ink-dim: #b7b3ab; --accent-green: #2f5c34;
+    --accent-green-bright: #4c8a52; --danger: #e08080; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    min-height:100vh; }
+  .wrap { max-width:400px; margin:0 auto; min-height:100vh; display:flex;
+    flex-direction:column; justify-content:center; padding:32px 24px; }
+  .brand { text-align:center; margin-bottom:36px; }
+  .brand .glyph { font-size:34px; margin-bottom:10px; }
+  .brand h1 { font-size:22px; font-weight:700; margin:0; }
+  .brand p { color:var(--ink-dim); font-size:13.5px; margin:6px 0 0; }
+  .field { margin-bottom:16px; }
+  .field label { display:block; font-size:12.5px; font-weight:600; color:var(--ink-dim);
+    text-transform:uppercase; letter-spacing:0.03em; margin-bottom:7px; }
+  .field input { width:100%; background:var(--card-2); border:1px solid var(--border);
+    border-radius:10px; padding:13px; color:var(--ink); font-size:15px; font-family:inherit; }
+  .field input:focus { outline:none; border-color:var(--accent-green-bright); }
+  .error { color:var(--danger); font-size:13px; margin:-6px 0 14px; min-height:16px; }
+  .btn-primary { width:100%; background:var(--accent-green); color:#eaf5ea; border:none;
+    border-radius:10px; padding:14px; font-size:15.5px; font-weight:600; cursor:pointer; margin-top:6px; }
+  .btn-primary:disabled { opacity:0.6; }
+  .switch { text-align:center; margin-top:20px; font-size:13.5px; color:var(--ink-dim); }
+  .switch a { color:var(--accent-green-bright); font-weight:600; text-decoration:none; }
+  .password-wrap { position:relative; }
+  .password-wrap input { padding-right:44px; }
+  .toggle-password { position:absolute; right:4px; top:50%; transform:translateY(-50%);
+    background:none; border:none; color:var(--ink-dim); padding:9px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; }
+  .toggle-password svg { width:19px; height:19px; }
+  .legal-footer { text-align:center; margin-top:26px; font-size:11.5px; color:var(--ink-dim); line-height:1.6; }
+  .legal-footer a { color:var(--ink-dim); text-decoration:underline; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="glyph">🎓</div>
+      <h1>Welcome back</h1>
+      <p>Log in to continue your study plan</p>
+    </div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="password-wrap">
+          <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+          <button type="button" class="toggle-password" data-target="password" aria-label="Show password">
+            <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.8 21.8 0 015.06-6.06M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.8 21.8 0 01-3.22 4.44M14.12 14.12a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="error" id="errorMsg"></div>
+      <button type="submit" class="btn-primary" id="submitBtn">Log In</button>
+    </form>
+
+    <div class="switch">Don't have an account? <a href="signup.html">Sign up</a></div>
+    <div class="switch" style="margin-top:8px;"><a href="forgot-password.html">Forgot password?</a> · <a href="help.html">Need help?</a></div>
+    <div class="legal-footer">By continuing, you agree to our<br><a href="terms.html">Terms &amp; Conditions</a> and <a href="privacy-policy.html">Privacy Policy</a></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-client.js"></script>
+  <script src="offline-store.js"></script>
+  <script>
+    registerServiceWorker();
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const errorMsg = document.getElementById("errorMsg");
+      const submitBtn = document.getElementById("submitBtn");
+
+      errorMsg.textContent = "";
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Logging in…";
+
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        errorMsg.textContent = error.message;
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Log In";
+        return;
+      }
+
+      window.location.href = "classroom-dashboard.html";
+    });
+
+    document.querySelectorAll(".toggle-password").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const input = document.getElementById(btn.dataset.target);
+        const isPassword = input.type === "password";
+        input.type = isPassword ? "text" : "password";
+        btn.querySelector(".eye-open").style.display = isPassword ? "none" : "";
+        btn.querySelector(".eye-closed").style.display = isPassword ? "" : "none";
+        btn.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+      });
+    });
+  </script>
+</body>
+</html>
