@@ -177,7 +177,7 @@
       headers: { Authorization: `Bearer ${session.access_token}` }
     });
 
-    if (error) throw new Error("Class Tutor is unavailable right now.");
+    if (error) throw new Error("Use the word eg. define Apple");
     if (data?.error) {
       if (data.outOfPoints) updatePointsLabel(data.remaining);
       const err = new Error(data.error);
