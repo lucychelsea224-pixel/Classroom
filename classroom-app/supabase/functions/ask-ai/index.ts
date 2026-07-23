@@ -1,46 +1,30 @@
 // =================================================================
 // Supabase Edge Function: ask-ai
-//
-// A study-help chatbot for Classroom, backed by Google Gemini
-// (chosen for its usable free tier — swap the fetch URL/body below
-// if you'd rather use OpenAI or Anthropic instead, the rest of this
-// function doesn't need to change).
-//
-// Requires a logged-in user, and spends "AI points" from their daily
-// allowance (500/day, refilled every 24h — see consume_ai_points()
-// in schema-ai-limits.sql) so one student can't run up the whole
-// month's AI bill by themselves.
 // =================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const GEMINI_MODEL = "gemini-2.0-flash";
-const AI_MESSAGE_COST = 10; // points per question — 500/day ≈ 50 questions/day
+const AI_MESSAGE_COST = 10; 
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `You are "Class Tutor", the study assistant inside "Classroom", an exam-prep app for
-students preparing for the Nigerian Common Entrance exam (roughly ages 10-12).
-The app covers six subjects: Civic Education, English, ICT, Mathematics, Science,
-and Social Studies.
+const SYSTEM_PROMPT = `You are "Class Tutor", the interactive, friendly study assistant inside "Classroom", an exam-prep app for students preparing for the Nigerian Common Entrance exam (roughly ages 10-12).
+The app covers six subjects: Civic Education, English, ICT, Mathematics, Science, and Social Studies.
 
-Rules:
-- Keep answers short, clear, and encouraging — a few sentences, not an essay.
+Core Rules & Guardrails:
+- Your name is "Class Tutor". You must always answer proudly to this name if asked.
+- You must engage interactively! Be ready to converse naturally, explain logic steps, encourage the student, and ask them short check-in questions to test their understanding.
+- Keep answers short, clear, and encouraging — a few sentences or a tiny bulleted list, not a massive wall of text.
 - Use simple language appropriate for a primary school student.
-- If asked to define a word, give a short, simple definition plus one example sentence.
-- If asked a question clearly unrelated to schoolwork (e.g. personal advice, adult
-  topics, anything inappropriate for a child), politely decline and steer the
-  conversation back to studying.
-- Never do a student's homework question for them outright if it looks like a direct
-  test question — instead explain the concept or method so they can work it out
-  themselves.
-- You do not have access to the student's actual notes or test questions in this
-  app — if asked about specific content only their teacher/the app's notes would
-  have, say so honestly rather than guessing.`;
+- Content Restrictions: Politely reject requests unrelated to schoolwork or academic learning (e.g., modern console/mobile gaming advice, movies, music mixing, adult topics, social media trends). If asked about these, say: "I am your Class Tutor, so I can only help you with your school subjects and academic questions! Let's get back to studying."
+- If asked to define a word, give a short, simple definition plus one practical example sentence.
+- Never do a student's homework question for them outright if it looks like a direct test question — instead explain the underlying concept or mathematical formula method so they can work it out themselves.
+- You do not have access to the student's actual notes or test questions in this app — if asked about specific internal structural content only their teacher or the app's internal developer notes would have, say so honestly rather than guessing.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -60,8 +44,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
     if (userErr || !user) throw new Error("Not authenticated.");
 
-    // Spend points BEFORE calling the (paid) Gemini API — if the
-    // student is out of points, we never make the expensive call at all.
+    // Spend points BEFORE calling the Gemini API
     const { data: pointsResult, error: pointsErr } = await supabaseUser
       .rpc("consume_ai_points", { cost: AI_MESSAGE_COST });
     if (pointsErr) throw new Error(pointsErr.message);
@@ -85,12 +68,8 @@ Deno.serve(async (req) => {
 
     const contextLine = subjectContext ? `The student is currently studying: ${subjectContext}.\n\n` : "";
 
-    // Gemini expects a running list of turns; we keep it short (last
-    // few messages) to control cost rather than sending unlimited history.
     const contents = [
-      { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-      { role: "model", parts: [{ text: "Understood — I'll help with that." }] },
-      ...(Array.isArray(history) ? history.slice(-6) : []),
+      ...(Array.isArray(history) ? history.slice(-8) : []),
       { role: "user", parts: [{ text: contextLine + question }] }
     ];
 
@@ -101,7 +80,13 @@ Deno.serve(async (req) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents,
-          generationConfig: { temperature: 0.6, maxOutputTokens: 400 }
+          systemInstruction: {
+            parts: [{ text: SYSTEM_PROMPT }]
+          },
+          generationConfig: { 
+            temperature: 0.5, 
+            maxOutputTokens: 450 
+          }
         })
       }
     );
@@ -109,7 +94,8 @@ Deno.serve(async (req) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error?.message || "AI request failed");
 
-    const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't come up with an answer for that — try rephrasing your question.";
+    const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || 
+      "Sorry, I couldn't come up with an answer for that — try rephrasing your question.";
 
     return new Response(JSON.stringify({ answer, remaining: pointsResult.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }

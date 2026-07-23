@@ -10,7 +10,7 @@
 <script src="supabase-client.js"></script>
 <script src="offline-store.js"></script>
 <style>
-  :root{
+  :root {
     --bg: #2d2d2d; --card: #3d3d3d; --card-2: #464646; --border: #4a4a4a;
     --ink: #f4f2ee; --ink-dim: #b7b3ab; --ink-faint: #857f75;
     --accent-green: #2f5c34; --accent-green-bright: #4c8a52; --radius: 12px;
@@ -88,7 +88,7 @@
     <div class="intro">
       <div class="glyph">🤖</div>
       <h2>Hi! I'm your Class Tutor</h2>
-      <p>Ask me to explain something from your subjects, or type "define [word]" to look up any word.</p>
+      <p>Ask me any question from your school subjects, or type "define [word]" to use the dictionary.</p>
     </div>
   </div>
 
@@ -107,12 +107,14 @@
 </div>
 
 <script>
-  registerServiceWorker();
+  if (typeof registerServiceWorker === "function") {
+    registerServiceWorker();
+  }
 
   const chatArea = document.getElementById("chatArea");
   const input = document.getElementById("messageInput");
   const sendBtn = document.getElementById("sendBtn");
-  let history = []; // { role: 'user'|'model', parts: [{text}] } — sent to ask-ai for short-term memory
+  let history = []; 
   let introShown = true;
 
   function scrollToBottom() {
@@ -138,11 +140,11 @@
     chatArea.appendChild(div);
     scrollToBottom();
   }
+  
   function removeTypingIndicator() {
     document.getElementById("typingIndicator")?.remove();
   }
 
-  // ---- Free dictionary lookups (no AI cost, no API key needed) ----
   async function tryDictionaryLookup(question) {
     const match = question.trim().match(/^define\s+(.+)$/i) || question.trim().match(/^what does\s+(.+?)\s+mean\??$/i);
     if (!match) return null;
@@ -151,7 +153,7 @@
 
     try {
       const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
-      if (!res.ok) return `I couldn't find a definition for "${word}". Want me to try explaining it a different way instead?`;
+      if (!res.ok) return null;
       const data = await res.json();
       const entry = data[0];
       const meaning = entry.meanings?.[0];
@@ -164,7 +166,7 @@
       if (example) out += `\n\nExample: "${example}"`;
       return out;
     } catch (err) {
-      return null; // fall through to the AI for a best-effort answer
+      return null;
     }
   }
 
@@ -177,7 +179,8 @@
       headers: { Authorization: `Bearer ${session.access_token}` }
     });
 
-    if (error) throw new Error("Use the word eg. define Apple");
+    if (error) throw new Error("Could not connect to Class Tutor. Please try again.");
+    
     if (data?.error) {
       if (data.outOfPoints) updatePointsLabel(data.remaining);
       const err = new Error(data.error);
@@ -219,10 +222,11 @@
     try {
       const dictAnswer = await tryDictionaryLookup(question);
       const answer = dictAnswer || await askAI(question);
+      
       removeTypingIndicator();
       addMessage(answer, "bot");
       history.push({ role: "model", parts: [{ text: answer }] });
-      if (history.length > 12) history = history.slice(-12); // keep context short and cheap
+      if (history.length > 12) history = history.slice(-12);
     } catch (err) {
       removeTypingIndicator();
       addMessage(err.message || "Something went wrong. Please try again.", "bot", true);
@@ -245,8 +249,10 @@
   });
 
   (async () => {
-    const user = await requireUser();
-    if (!user) return;
+    if (typeof requireUser === "function") {
+      const user = await requireUser();
+      if (!user) return;
+    }
     updatePointsLabel();
   })();
 </script>
