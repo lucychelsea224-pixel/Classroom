@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Help & Support · Classroom</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d2d2d">
+<style>
+  :root{
+    --bg: #2d2d2d; --card: #3d3d3d; --border: #4a4a4a;
+    --ink: #f4f2ee; --ink-dim: #b7b3ab; --accent-green: #2f5c34; --accent-green-bright: #4c8a52;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  a { color:var(--accent-green-bright); }
+  .wrap { max-width:640px; margin:0 auto; padding:16px 20px 60px; }
+  .topbar { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  .icon-btn { background:none; border:none; color:var(--ink); padding:4px; display:flex;
+    align-items:center; justify-content:center; cursor:pointer; }
+  .icon-btn svg { width:22px; height:22px; }
+  h1 { font-size:22px; font-weight:700; margin:18px 0 6px; }
+  .lead { color:var(--ink-dim); font-size:14px; margin:0 0 28px; line-height:1.5; }
+
+  details.faq {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    margin-bottom:10px; overflow:hidden;
+  }
+  details.faq summary {
+    list-style:none; cursor:pointer; padding:15px 16px; display:flex; align-items:center; gap:12px;
+    font-size:14.5px; font-weight:600;
+  }
+  details.faq summary::-webkit-details-marker { display:none; }
+  details.faq summary .chev { color:var(--ink-dim); flex-shrink:0; margin-left:auto; transition:transform 0.15s ease; }
+  details.faq[open] summary .chev { transform:rotate(90deg); }
+  details.faq .faq-body {
+    padding:0 16px 16px; color:var(--ink-dim); font-size:13.5px; line-height:1.65;
+  }
+  details.faq .faq-body ol, details.faq .faq-body ul { margin:8px 0; padding-left:20px; }
+  details.faq .faq-body li { margin-bottom:6px; }
+  details.faq .faq-body strong { color:var(--ink); }
+
+  h2.section-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;
+    color:var(--ink-dim); margin:32px 0 12px; }
+
+  .contact-card {
+    background:var(--card); border:1px solid var(--accent-green-bright); border-radius:var(--radius);
+    padding:22px; text-align:center;
+  }
+  .contact-card .glyph { font-size:32px; margin-bottom:10px; }
+  .contact-card h3 { font-size:16px; margin:0 0 8px; }
+  .contact-card p { font-size:13.5px; color:var(--ink-dim); margin:0 0 14px; line-height:1.5; }
+  .contact-card a.email-btn {
+    display:inline-block; background:var(--accent-green); color:#eaf5ea; text-decoration:none;
+    padding:12px 22px; border-radius:999px; font-size:14px; font-weight:700;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <button class="icon-btn" onclick="history.back()" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+    </div>
+
+    <h1>Help & Support</h1>
+    <p class="lead">Common issues with signing up or logging in, and how to fix them.</p>
+
+    <details class="faq" open>
+      <summary>I can't create an account — it says my email is already in use<span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg></span></summary>
+      <div class="faq-body">
+        This means an account already exists with that email — likely one you (or a parent/guardian) created before.
+        <ol>
+          <li>Go back to the <a href="login.html">Log In</a> page and try logging in with that email instead.</li>
+          <li>If you don't remember the password, use <a href="forgot-password.html">Forgot password?</a> to reset it.</li>
+          <li>If you're sure you've never signed up before, contact us below — it's possible the email was used by mistake.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>I signed up but never got a confirmation email<span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg></span></summary>
+      <div class="faq-body">
+        <ol>
+          <li>Check your <strong>spam or junk folder</strong> — confirmation emails sometimes land there.</li>
+          <li>Wait a few minutes; delivery can occasionally be slow.</li>
+          <li>Double-check you typed your email correctly when signing up.</li>
+          <li>Still nothing after 15 minutes? Contact us below and we'll help directly.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>My password won't work / I forgot it<span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg></span></summary>
+      <div class="faq-body">
+        Go to <a href="forgot-password.html">Forgot password?</a> on the login page and enter your email. You'll get a link to set a new password. If you don't see the email within a few minutes, check your spam folder.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>Sign-up says my password is too weak<span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg></span></summary>
+      <div class="faq-body">
+        Your password needs to be <strong>at least 6 characters</strong>. For a stronger password, mix in a number or symbol — but 6+ characters is all that's required to sign up.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>The app seems stuck loading or won't log me in<span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg></span></summary>
+      <div class="faq-body">
+        <ol>
+          <li>Check your internet connection — signing in needs an active connection, even though some content works offline afterward.</li>
+          <li>Close the app fully and reopen it.</li>
+          <li>If you're using it installed as an app, try opening it in your regular browser instead to see if the issue persists.</li>
+          <li>Still stuck? Contact us below with what device/browser you're using — that helps us figure out what's wrong.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>I paid for Premium but it's not unlocked yet<span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg></span></summary>
+      <div class="faq-body">
+        Payments are usually confirmed within moments. If it's been more than a few minutes, contact us below with your <strong>payment reference number</strong> (shown on the payment confirmation screen) so we can look it up quickly.
+      </div>
+    </details>
+
+    <h2 class="section-title">Still need help?</h2>
+    <div class="contact-card">
+      <div class="glyph">💬</div>
+      <h3>We're happy to help</h3>
+      <p>Email us and we'll get back to you as soon as we can. Please include your account email and a short description of the issue.</p>
+      <a class="email-btn" href="mailto:classroomcareservice@gmail.com">classroomcareservice@gmail.com</a>
+    </div>
+  </div>
+</body>
+</html>
