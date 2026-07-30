@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Choose a Test · Classroom</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d2d2d">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="offline-store.js"></script>
+<script src="subjects.js"></script>
+<style>
+  :root{
+    --bg: #2d2d2d; --card: #3d3d3d; --border: #4a4a4a;
+    --ink: #f4f2ee; --ink-dim: #b7b3ab; --ink-faint: #857f75;
+    --accent-green: #2f5c34; --accent-green-bright: #4c8a52; --radius: 12px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    -webkit-font-smoothing: antialiased; min-height:100vh; }
+  a { color:inherit; text-decoration:none; }
+
+  .app { max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
+
+  .topbar { display:flex; align-items:center; gap:14px; padding:14px 16px;
+    padding-top:max(14px, env(safe-area-inset-top)); position:sticky; top:0; background:var(--bg); z-index:5; }
+  .icon-btn { background:none; border:none; color:var(--ink); padding:4px; display:flex;
+    align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
+  .icon-btn svg { width:22px; height:22px; }
+  .topbar h1 { flex:1; font-size:19px; font-weight:600; margin:0; letter-spacing:-0.01em; }
+
+  main { flex:1; padding:10px 16px 32px; }
+  .lead { font-size:13.5px; color:var(--ink-dim); margin:0 0 18px; }
+
+  .test-list { display:flex; flex-direction:column; gap:12px; }
+
+  .test-card {
+    display:flex; align-items:center; gap:14px;
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px; cursor:pointer; transition:transform 0.15s ease;
+  }
+  .test-card:active { transform:scale(0.98); }
+
+  .test-number-badge {
+    width:44px; height:44px; border-radius:10px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(76,138,82,0.16); color:var(--ink); font-size:16px; font-weight:700;
+  }
+  .test-body { flex:1; min-width:0; }
+  .test-body h3 { margin:0 0 3px; font-size:15.5px; font-weight:600; }
+  .test-body p { margin:0; font-size:13px; color:var(--ink-dim); }
+
+  .chevron { color:var(--ink-faint); flex-shrink:0; }
+  .chevron svg { width:18px; height:18px; }
+
+  .empty-state { text-align:center; padding:56px 20px; color:var(--ink-faint); }
+  .empty-state .glyph { font-size:36px; margin-bottom:12px; }
+  .empty-state p { margin:0; font-size:14px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <a class="icon-btn" id="backBtn" href="classroom-dashboard.html" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 id="pageTitle">Choose a Test</h1>
+  </header>
+
+  <main>
+    <p class="lead" id="leadText">Pick a set of questions to practice.</p>
+    <div class="test-list" id="testList"></div>
+  </main>
+</div>
+
+<script>
+  const subjects = SUBJECTS; // from subjects.js
+
+  const params = new URLSearchParams(window.location.search);
+  const subjectId = params.get("id");
+  const subject = subjects.find(s => s.id === subjectId);
+
+  registerServiceWorker();
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  function renderTests(counts) {
+    const list = document.getElementById("testList");
+    const testNumbers = Object.keys(counts).map(Number).sort((a, b) => a - b);
+
+    if (!testNumbers.length) {
+      list.innerHTML = `<div class="empty-state"><div class="glyph">🧪</div><p>No CBT questions have been added for ${escapeHtml(subject.name)} yet.</p></div>`;
+      return;
+    }
+
+    list.innerHTML = testNumbers.map(n => `
+      <a class="test-card" href="quiz.html?id=${encodeURIComponent(subject.id)}&test=${n}">
+        <div class="test-number-badge">${n}</div>
+        <div class="test-body">
+          <h3>Test ${n}</h3>
+          <p>${counts[n]} question${counts[n] === 1 ? "" : "s"}</p>
+        </div>
+        <div class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      </a>
+    `).join("");
+  }
+
+  (async () => {
+    const user = await requireUser();
+    if (!user) return;
+
+    if (!subject) { window.location.href = "classroom-dashboard.html"; return; }
+
+    document.getElementById("pageTitle").textContent = subject.name + " Tests";
+    document.getElementById("leadText").textContent = `Pick a set of ${subject.name} questions to practice — smaller batches are easier to finish in one sitting.`;
+    document.getElementById("backBtn").href = `subject.html?id=${encodeURIComponent(subject.id)}`;
+
+    let rows = [];
+    if (navigator.onLine) {
+      const { data, error } = await supabaseClient
+        .from("questions")
+        .select("test_number")
+        .eq("subject_id", subject.id);
+      if (!error && data) rows = data;
+      else rows = ((await offlineStore.getQuestions(subject.id)) || []).map(q => ({ test_number: q.test_number || 1 }));
+    } else {
+      rows = ((await offlineStore.getQuestions(subject.id)) || []).map(q => ({ test_number: q.test_number || 1 }));
+    }
+
+    const counts = {};
+    rows.forEach(r => {
+      const n = r.test_number || 1;
+      counts[n] = (counts[n] || 0) + 1;
+    });
+
+    renderTests(counts);
+  })();
+</script>
+
+</body>
+</html>

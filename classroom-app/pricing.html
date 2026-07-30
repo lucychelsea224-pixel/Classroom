@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pricing · Classroom</title>
+<meta name="description" content="Simple, one-time pricing to unlock all premium study content on Classroom.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d2d2d">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<style>
+  :root{
+    --bg: #2d2d2d; --card: #3d3d3d; --card-2: #464646; --border: #4a4a4a;
+    --ink: #f4f2ee; --ink-dim: #b7b3ab; --ink-faint: #857f75;
+    --accent-green: #2f5c34; --accent-green-bright: #4c8a52; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  a { color:var(--accent-green-bright); }
+  .wrap { max-width:640px; margin:0 auto; padding:16px 20px 60px; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .icon-btn { background:none; border:none; color:var(--ink); padding:4px; display:flex;
+    align-items:center; justify-content:center; cursor:pointer; }
+  .icon-btn svg { width:22px; height:22px; }
+  .logo { display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; text-decoration:none; color:var(--ink); }
+  .logo .mark { width:26px; height:26px; border-radius:7px; background:var(--accent-green); color:#eaf5ea;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; }
+
+  h1 { font-size:26px; font-weight:800; text-align:center; margin:28px 0 8px; }
+  .lead { color:var(--ink-dim); font-size:14.5px; text-align:center; margin:0 auto 32px; max-width:420px; line-height:1.6; }
+
+  .plan-card {
+    background:var(--card); border:1px solid var(--accent-green-bright); border-radius:16px;
+    padding:28px 24px; text-align:center; max-width:400px; margin:0 auto 28px;
+  }
+  .plan-card h2 { font-size:15px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-dim); margin:0 0 12px; }
+  .plan-price { font-size:42px; font-weight:800; margin-bottom:4px; }
+  .plan-price span { font-size:15px; font-weight:500; color:var(--ink-dim); }
+  .plan-sub { font-size:13px; color:var(--ink-dim); margin-bottom:22px; }
+  .currency-row { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:22px; }
+  .currency-row select {
+    background:var(--card-2); border:1px solid var(--border); border-radius:8px;
+    padding:9px 14px; color:var(--ink); font-size:14px;
+  }
+  .plan-features { list-style:none; padding:0; margin:0 0 24px; display:flex; flex-direction:column; gap:10px; text-align:left; }
+  .plan-features li { display:flex; align-items:center; gap:10px; font-size:14px; }
+  .plan-features svg { width:17px; height:17px; color:var(--accent-green-bright); flex-shrink:0; }
+  .btn-primary {
+    display:inline-block; width:100%; background:var(--accent-green); color:#eaf5ea; text-decoration:none;
+    padding:14px; border-radius:10px; font-size:15.5px; font-weight:700; box-sizing:border-box;
+  }
+
+  .free-note {
+    text-align:center; font-size:13px; color:var(--ink-dim); max-width:420px; margin:0 auto 40px; line-height:1.6;
+  }
+
+  h2.section-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;
+    color:var(--ink-dim); margin:32px 0 14px; text-align:center; }
+  .policy-links { display:flex; justify-content:center; gap:18px; font-size:13px; margin-top:12px; }
+
+  .faq-item { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin-bottom:10px; max-width:520px; margin-left:auto; margin-right:auto; }
+  .faq-item h3 { font-size:14px; margin:0 0 6px; }
+  .faq-item p { font-size:13px; color:var(--ink-dim); margin:0; line-height:1.6; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a class="logo" href="index.html"><span class="mark">C</span> Classroom</a>
+      <a class="icon-btn" href="index.html" aria-label="Back to home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </a>
+    </div>
+
+    <h1>Simple, one-time pricing</h1>
+    <p class="lead">Classroom is free to use for every subject's notes and practice tests that aren't marked Premium. One optional payment unlocks the rest — no subscriptions, no recurring charges.</p>
+
+    <div class="plan-card">
+      <h2>Premium Unlock</h2>
+      <div class="plan-price" id="planPrice">—</div>
+      <div class="plan-sub">One-time payment · lifetime access</div>
+      <div class="currency-row">
+        <label for="currencySelect" style="font-size:12.5px; color:var(--ink-dim);">Currency:</label>
+        <select id="currencySelect"></select>
+      </div>
+      <ul class="plan-features">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg> Every premium note, every subject</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg> Paid once, unlocked forever</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg> Unlocks instantly after payment</li>
+      </ul>
+      <a class="btn-primary" href="signup.html">Get Started</a>
+    </div>
+
+    <p class="free-note">Already have an account? <a href="upgrade.html">Go to the unlock page</a> to pay or redeem an activation code.</p>
+
+    <h2 class="section-title">Common Questions</h2>
+    <div class="faq-item">
+      <h3>Is this a subscription?</h3>
+      <p>No. It's a single one-time payment. There's nothing to cancel and nothing that renews or charges you again.</p>
+    </div>
+    <div class="faq-item">
+      <h3>What payment methods are accepted?</h3>
+      <p>Payments are processed securely through Paystack, which supports debit/credit cards, bank transfers, and USSD depending on your location.</p>
+    </div>
+    <div class="faq-item">
+      <h3>What if I want a refund?</h3>
+      <p>See our <a href="refund-policy.html">Cancellation &amp; Refund Policy</a> for the full details on when refunds are available and how to request one.</p>
+    </div>
+
+    <div class="policy-links">
+      <a href="refund-policy.html">Refund Policy</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy-policy.html">Privacy</a>
+    </div>
+  </div>
+
+  <script>
+    const CURRENCY_SYMBOLS_LOCAL = {};
+    (async () => {
+      const pricing = await getPricing();
+      const select = document.getElementById("currencySelect");
+      select.innerHTML = Object.keys(pricing).map(c => `<option value="${c}">${c}</option>`).join("");
+      Object.keys(pricing).forEach(c => CURRENCY_SYMBOLS_LOCAL[c] = pricing[c].symbol);
+
+      function updatePrice() {
+        const currency = select.value;
+        const { amount, symbol } = pricing[currency];
+        document.getElementById("planPrice").innerHTML = `${symbol}${amount.toLocaleString()} <span>${currency}</span>`;
+      }
+      select.addEventListener("change", updatePrice);
+      updatePrice();
+    })();
+  </script>
+</body>
+</html>

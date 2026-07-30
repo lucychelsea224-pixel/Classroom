@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Class Tutor · Classroom</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d2d2d">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="offline-store.js"></script>
+<style>
+  :root{
+    --bg: #2d2d2d; --card: #3d3d3d; --card-2: #464646; --border: #4a4a4a;
+    --ink: #f4f2ee; --ink-dim: #b7b3ab; --ink-faint: #857f75;
+    --accent-green: #2f5c34; --accent-green-bright: #4c8a52; --radius: 12px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    -webkit-font-smoothing: antialiased; height:100vh; overflow:hidden; }
+  a { color:inherit; text-decoration:none; }
+  button, textarea { font-family: inherit; }
+
+  .app { max-width:480px; margin:0 auto; height:100vh; display:flex; flex-direction:column; }
+
+  .topbar { display:flex; align-items:center; gap:14px; padding:14px 16px;
+    padding-top:max(14px, env(safe-area-inset-top)); background:var(--bg); z-index:5; flex-shrink:0;
+    border-bottom:1px solid var(--border); }
+  .icon-btn { background:none; border:none; color:var(--ink); padding:4px; display:flex;
+    align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
+  .icon-btn svg { width:22px; height:22px; }
+  .topbar h1 { flex:1; font-size:17px; font-weight:600; margin:0; }
+  .topbar p { font-size:11px; color:var(--ink-faint); margin:1px 0 0; }
+
+  .chat-area { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+
+  .msg { max-width:82%; padding:11px 14px; border-radius:14px; font-size:14px; line-height:1.5; white-space:pre-wrap; }
+  .msg.user { align-self:flex-end; background:var(--accent-green); color:#eaf5ea; border-bottom-right-radius:4px; }
+  .msg.bot { align-self:flex-start; background:var(--card); color:var(--ink); border-bottom-left-radius:4px; }
+  .msg.bot.error { background:rgba(198,91,91,0.15); color:#e08080; }
+  .msg.typing { display:flex; gap:4px; align-items:center; padding:14px; }
+  .msg.typing span { width:6px; height:6px; border-radius:50%; background:var(--ink-faint); animation:bounce 1.2s infinite; }
+  .msg.typing span:nth-child(2) { animation-delay:0.15s; }
+  .msg.typing span:nth-child(3) { animation-delay:0.3s; }
+  @keyframes bounce { 0%,60%,100% { transform:translateY(0); opacity:0.4; } 30% { transform:translateY(-4px); opacity:1; } }
+
+  .suggestions { display:flex; flex-wrap:wrap; gap:8px; padding:0 16px 14px; flex-shrink:0; }
+  .suggestion-chip {
+    background:var(--card); border:1px solid var(--border); color:var(--ink-dim);
+    border-radius:999px; padding:8px 13px; font-size:12.5px; font-weight:500; cursor:pointer;
+  }
+
+  .intro { text-align:center; padding:30px 24px 10px; color:var(--ink-faint); }
+  .intro .glyph { font-size:38px; margin-bottom:12px; }
+  .intro h2 { font-size:16px; color:var(--ink); margin-bottom:6px; }
+  .intro p { font-size:13px; line-height:1.5; }
+
+  .input-row { display:flex; align-items:flex-end; gap:10px; padding:12px 16px calc(14px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--border); flex-shrink:0; background:var(--bg); }
+  .input-row textarea {
+    flex:1; background:var(--card-2); border:1px solid var(--border); border-radius:16px;
+    padding:11px 15px; color:var(--ink); font-size:14.5px; resize:none; max-height:100px; line-height:1.4;
+  }
+  .input-row textarea:focus { outline:none; border-color:var(--accent-green-bright); }
+  .send-btn {
+    width:42px; height:42px; border-radius:50%; background:var(--accent-green); color:#eaf5ea;
+    border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+  }
+  .send-btn:disabled { opacity:0.5; }
+  .send-btn svg { width:19px; height:19px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <a class="icon-btn" href="classroom-dashboard.html" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </a>
+    <div>
+      <h1>Class Tutor</h1>
+      <p id="pointsLabel">Ask a question or look up a word</p>
+    </div>
+  </header>
+
+  <div class="chat-area" id="chatArea">
+    <div class="intro">
+      <div class="glyph">🤖</div>
+      <h2>Hi! I'm your Class Tutor</h2>
+      <p>Ask me to explain something from your subjects, or type "define [word]" to look up any word.</p>
+    </div>
+  </div>
+
+  <div class="suggestions" id="suggestions">
+    <button class="suggestion-chip" data-fill="define photosynthesis">Define "photosynthesis"</button>
+    <button class="suggestion-chip" data-fill="Explain the three arms of government">Arms of government</button>
+    <button class="suggestion-chip" data-fill="How do I change a fraction to a percentage?">Fractions to %</button>
+  </div>
+
+  <div class="input-row">
+    <textarea id="messageInput" rows="1" placeholder="Type a question…"></textarea>
+    <button class="send-btn" id="sendBtn" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  registerServiceWorker();
+
+  const chatArea = document.getElementById("chatArea");
+  const input = document.getElementById("messageInput");
+  const sendBtn = document.getElementById("sendBtn");
+  let history = []; // { role: 'user'|'model', parts: [{text}] } — sent to ask-ai for short-term memory
+  let introShown = true;
+
+  function scrollToBottom() {
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function addMessage(text, sender, isError) {
+    if (introShown) { chatArea.innerHTML = ""; introShown = false; }
+    const div = document.createElement("div");
+    div.className = `msg ${sender}${isError ? " error" : ""}`;
+    div.textContent = text;
+    chatArea.appendChild(div);
+    scrollToBottom();
+    return div;
+  }
+
+  function addTypingIndicator() {
+    if (introShown) { chatArea.innerHTML = ""; introShown = false; }
+    const div = document.createElement("div");
+    div.className = "msg bot typing";
+    div.id = "typingIndicator";
+    div.innerHTML = "<span></span><span></span><span></span>";
+    chatArea.appendChild(div);
+    scrollToBottom();
+  }
+  function removeTypingIndicator() {
+    document.getElementById("typingIndicator")?.remove();
+  }
+
+  // ---- Instant local replies for greetings & "who are you" — these
+  // always work, even before the AI function is deployed/configured,
+  // since they never leave the browser. ----
+  const GREETING_PATTERNS = /^(hi|hey|hello|hiya|good\s?morning|good\s?afternoon|good\s?evening|yo|sup)[\s!.,]*$/i;
+  const IDENTITY_PATTERNS = /(who are you|what('?s| is) your name|what are you)/i;
+  const HOW_ARE_YOU = /how are you|how('?s| is) it going/i;
+
+  function tryInstantReply(question) {
+    const q = question.trim();
+    if (GREETING_PATTERNS.test(q)) {
+      return "Hey! I'm Classroom Tutor Bot 🤖 I'm here to help you study — ask me to explain a topic, define a word, or just chat about what you're learning. What subject are we working on today?";
+    }
+    if (IDENTITY_PATTERNS.test(q)) {
+      return "I'm Classroom Tutor Bot — your study assistant here in Classroom! Ask me anything about Civic Education, English, ICT, Mathematics, Science, Social Studies, or the reasoning subjects, and I'll do my best to explain it simply.";
+    }
+    if (HOW_ARE_YOU.test(q)) {
+      return "I'm doing great, thanks for asking! Ready to help you study whenever you are — what would you like to go over?";
+    }
+    return null;
+  }
+
+  // ---- Free dictionary lookups (no AI cost, no API key needed) ----
+  async function tryDictionaryLookup(question) {
+    const match = question.trim().match(/^define\s+(.+)$/i) || question.trim().match(/^what does\s+(.+?)\s+mean\??$/i);
+    if (!match) return null;
+    const word = match[1].trim().replace(/["'.?]/g, "");
+    if (!word) return null;
+
+    try {
+      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+      if (!res.ok) return `I couldn't find a definition for "${word}". Want me to try explaining it a different way instead?`;
+      const data = await res.json();
+      const entry = data[0];
+      const meaning = entry.meanings?.[0];
+      const definition = meaning?.definitions?.[0]?.definition;
+      const example = meaning?.definitions?.[0]?.example;
+      const partOfSpeech = meaning?.partOfSpeech;
+
+      if (!definition) return null;
+      let out = `${entry.word}${partOfSpeech ? ` (${partOfSpeech})` : ""}: ${definition}`;
+      if (example) out += `\n\nExample: "${example}"`;
+      return out;
+    } catch (err) {
+      return null; // fall through to the AI for a best-effort answer
+    }
+  }
+
+  async function askAI(question) {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) { window.location.href = "login.html"; return null; }
+
+    const { data, error } = await supabaseClient.functions.invoke("ask-ai", {
+      body: { question, history },
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    });
+
+    if (error) throw new Error("Class Tutor is unavailable right now.");
+    if (data?.error) {
+      if (data.outOfPoints) updatePointsLabel(data.remaining);
+      const err = new Error(data.error);
+      err.outOfPoints = !!data.outOfPoints;
+      throw err;
+    }
+    updatePointsLabel(data.remaining);
+    return data.answer;
+  }
+
+  async function updatePointsLabel(remaining) {
+    const label = document.getElementById("pointsLabel");
+    if (remaining === undefined) {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) return;
+      const { data } = await supabaseClient.rpc("get_ai_points");
+      remaining = data?.remaining;
+    }
+    if (remaining === undefined) return;
+    const questionsLeft = Math.floor(remaining / 10);
+    label.textContent = questionsLeft > 0
+      ? `${questionsLeft} question${questionsLeft === 1 ? "" : "s"} left today`
+      : "Daily limit reached — more tomorrow";
+  }
+
+  async function sendMessage(text) {
+    const question = (text ?? input.value).trim();
+    if (!question) return;
+
+    input.value = "";
+    input.style.height = "auto";
+    document.getElementById("suggestions").style.display = "none";
+    addMessage(question, "user");
+    history.push({ role: "user", parts: [{ text: question }] });
+
+    addTypingIndicator();
+    sendBtn.disabled = true;
+
+    try {
+      const instant = tryInstantReply(question);
+      const dictAnswer = instant || await tryDictionaryLookup(question);
+      const answer = dictAnswer || await askAI(question);
+      removeTypingIndicator();
+      addMessage(answer, "bot");
+      history.push({ role: "model", parts: [{ text: answer }] });
+      if (history.length > 12) history = history.slice(-12); // keep context short and cheap
+    } catch (err) {
+      removeTypingIndicator();
+      addMessage(err.message || "Something went wrong. Please try again.", "bot", true);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener("click", () => sendMessage());
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  input.addEventListener("input", () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 100) + "px";
+  });
+  document.getElementById("suggestions").addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-fill]");
+    if (chip) sendMessage(chip.dataset.fill);
+  });
+
+  (async () => {
+    const user = await requireUser();
+    if (!user) return;
+    updatePointsLabel();
+  })();
+</script>
+
+</body>
+</html>
