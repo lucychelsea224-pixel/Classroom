@@ -111,15 +111,26 @@ Deno.serve(async (req) => {
       .map(u => ({ email: u.email, fullName: u.user_metadata?.full_name || "" }));
 
     let sent = 0, failed = 0;
-    // Sent one at a time (not in parallel) — EmailJS rate-limits bursts,
-    // and this keeps it reliable over speed for a daily batch job.
-    for (const r of recipients) {
-      try {
-        const ok = await sendOne(r.email, r.fullName);
+    const BATCH_SIZE = 15; // Process 15 emails concurrently to optimize execution time without triggering harsh API blocks
+
+    for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+      const batch = recipients.slice(i, i + BATCH_SIZE);
+      
+      // Fire all network requests in the current batch concurrently
+      const results = await Promise.all(
+        batch.map(async (r) => {
+          try {
+            return await sendOne(r.email, r.fullName);
+          } catch {
+            return false;
+          }
+        })
+      );
+
+      // Track the results of this batch
+      results.forEach(ok => {
         if (ok) sent++; else failed++;
-      } catch {
-        failed++;
-      }
+      });
     }
 
     return new Response(JSON.stringify({ ok: true, sent, failed, total: recipients.length }), {
