@@ -10,12 +10,9 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window.supabaseClient = supabaseClient;
 
-// The single admin account. Create this user for real inside
-// Supabase Auth (dashboard → Authentication → Add user) with:
-//   email:    adekunleadeniji360@gmail.com
-//   password: Adewumi@123
-// Never hardcode the password here — only the email is needed
-// client-side, to check who's allowed into the admin panel.
+
+
+
 const ADMIN_EMAIL = "adekunleadeniji360@gmail.com";
 
 // ---- Shared helpers used by protected pages ----
@@ -56,7 +53,7 @@ async function logout(redirectTo) {
 // Paystack dashboard -> Settings -> API Keys & Webhooks.
 // The SECRET key never goes here — it only ever lives as a Supabase
 // Edge Function secret (see verify-payment).
-const PAYSTACK_PUBLIC_KEY = "pk_test_replace_with_your_public_key";
+const PAYSTACK_PUBLIC_KEY = "pk_live_bc1c2789f65c9d781846bc2c27bfd13a5e197420";
 
 // Fallback prices, only used if the database can't be reached (e.g.
 // offline, or before schema-pricing.sql has been run). The real,
