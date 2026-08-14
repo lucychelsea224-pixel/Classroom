@@ -186,7 +186,7 @@
     payBtn.textContent = "Opening checkout…";
 
     const handler = PaystackPop.setup({
-      key: PAYSTACK_PUBLIC_KEY,
+      key: 'pk_live_bc1c2789f65c9d781846bc2c27bfd13a5e197420',
       email: session.user.email,
       amount: Math.round(amount * 100), // Paystack expects the smallest currency unit
       currency,
