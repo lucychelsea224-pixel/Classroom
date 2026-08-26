@@ -49,9 +49,9 @@ select cron.schedule(
   '0 16 * * *', -- 16:00 UTC = 5:00 PM WAT (Nigeria) — edit if you want a different time
   $$
   select net.http_post(
-    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-reminders',
+    url := 'https://ngxquexeuxafolikgqla.supabase.co/functions/v1/send-reminders',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer YOUR_SERVICE_ROLE_KEY',
+      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5neHF1ZXhldXhhZm9saWtncWxhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzkxMTU5MCwiZXhwIjoyMDk5NDg3NTkwfQ.NG-giQQvQRmPPhCZDcIKJKTLJsd5TNs7Ty7X_5iO3_I',
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb

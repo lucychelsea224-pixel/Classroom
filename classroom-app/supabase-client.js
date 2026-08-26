@@ -266,7 +266,7 @@ function urlBase64ToUint8Array(base64String) {
 // VAPID_PUBLIC_KEY must be set below to the public half of the key
 // pair generated for schema-push-notifications.sql (safe to hardcode
 // here — unlike the private key, the public key is meant to be public).
-const VAPID_PUBLIC_KEY = ""; // <-- paste your VAPID public key here after generating it
+const VAPID_PUBLIC_KEY = "BIuaUCsIy11xAHWYiDFB7WZapqiuXfH_0pUyMfouTmSE4sY0u8HISLrI_lNvhrBbyWXW_5AHBu4oG7JdWXwgt-w"; // <-- paste your VAPID public key here after generating it
 
 async function enableStudyReminders() {
   if (!VAPID_PUBLIC_KEY) {
