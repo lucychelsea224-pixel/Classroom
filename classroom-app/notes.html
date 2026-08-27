@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Notes · Classroom</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d2d2d">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="offline-store.js"></script>
+<script src="subjects.js"></script>
+<style>
+  :root{
+    --bg: #2d2d2d; --card: #3d3d3d; --border: #4a4a4a;
+    --ink: #f4f2ee; --ink-dim: #b7b3ab; --ink-faint: #857f75;
+    --accent-green: #2f5c34; --accent-green-bright: #4c8a52; --radius: 12px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    -webkit-font-smoothing: antialiased; min-height:100vh; }
+  a { color:inherit; text-decoration:none; }
+
+  .app { max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
+
+  .topbar { display:flex; align-items:center; gap:14px; padding:14px 16px;
+    padding-top:max(14px, env(safe-area-inset-top)); position:sticky; top:0; background:var(--bg); z-index:5; }
+  .icon-btn { background:none; border:none; color:var(--ink); padding:4px; display:flex;
+    align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
+  .icon-btn svg { width:22px; height:22px; }
+  .topbar h1 { flex:1; font-size:19px; font-weight:600; margin:0; letter-spacing:-0.01em; }
+
+  .offline-banner {
+    display:flex; align-items:center; gap:8px; margin:4px 14px 10px; padding:9px 13px;
+    background:#4a3a20; border:1px solid #6b5530; border-radius:10px; color:#f0d9a8; font-size:12.5px;
+  }
+  .offline-banner .dot { width:7px; height:7px; border-radius:50%; background:#e0a458; flex-shrink:0; }
+
+  main { flex:1; padding:6px 16px 32px; }
+
+  .note-list-card {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    margin-bottom:12px; padding:16px; display:flex; align-items:center; gap:12px;
+    cursor:pointer; transition:transform 0.15s ease;
+  }
+  .note-list-card:active { transform:scale(0.98); }
+  .note-list-card h3 { margin:0; font-size:15.5px; font-weight:600; flex:1; line-height:1.4; }
+  .note-list-card .chev { color:var(--ink-faint); flex-shrink:0; }
+  .note-list-card .chev svg { width:18px; height:18px; }
+  .note-list-card.locked { opacity:0.75; }
+  .note-list-card.locked h3 { color:var(--ink-dim); }
+  .note-list-card .lock-badge {
+    display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700;
+    color:#e0a458; background:rgba(224,164,88,0.14); padding:4px 9px; border-radius:999px; flex-shrink:0;
+  }
+  .note-list-card .lock-badge svg { width:12px; height:12px; }
+
+  .note-detail-back {
+    display:flex; align-items:center; gap:8px; background:none; border:none; color:var(--accent-green-bright);
+    padding:6px 0 16px; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  .note-detail-back svg { width:18px; height:18px; }
+
+  .note-detail-card {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:18px;
+  }
+  .note-detail-card h2 { margin:0 0 14px; font-size:17px; font-weight:700; line-height:1.4; }
+  .note-body { color:var(--ink-dim); font-size:14px; line-height:1.6; white-space:pre-wrap; }
+  .note-body strong { color:var(--ink); font-weight:700; }
+  .note-body em { font-style:italic; }
+
+  .note-video-wrap {
+    margin-top:16px; border-radius:12px; overflow:hidden; background:#000;
+    position:relative; width:100%; padding-top:56.25%; /* 16:9 */
+  }
+  .note-video-wrap iframe {
+    position:absolute; top:0; left:0; width:100%; height:100%; border:0;
+  }
+  .note-video-label {
+    display:flex; align-items:center; gap:6px; margin:18px 0 8px; font-size:13px; font-weight:600; color:var(--ink-dim);
+  }
+  .note-video-label svg { width:16px; height:16px; color:#ff3b30; }
+
+  .note-diagram {
+    margin:18px 0; text-align:center;
+  }
+  .note-diagram img {
+    max-width:100%; border-radius:10px; border:1px solid var(--border); background:#fff;
+  }
+  .note-diagram figcaption {
+    margin-top:7px; font-size:12.5px; color:var(--ink-faint); font-style:italic;
+  }
+
+  .note-search {
+    width:100%; background:var(--card); border:1px solid var(--border); color:var(--ink);
+    border-radius:10px; padding:11px 14px; font-size:14px; font-family:inherit; margin-bottom:14px;
+  }
+  .note-search::placeholder { color:var(--ink-faint); }
+  .note-search:focus { outline:none; border-color:var(--accent-green-bright); }
+
+  main { -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none; }
+
+  .empty-state { text-align:center; padding:56px 20px; color:var(--ink-faint); }
+  .empty-state .glyph { font-size:36px; margin-bottom:12px; }
+  .empty-state p { margin:0; font-size:14px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <button class="icon-btn" id="backBtn" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </button>
+    <h1 id="pageTitle">Notes</h1>
+  </header>
+
+  <div class="offline-banner" id="offlineBanner" hidden>
+    <span class="dot"></span> You're offline — showing saved notes
+  </div>
+
+  <main id="notesList"></main>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const subjectId = params.get("id");
+  let subject = null; // resolved for the active class level in the init block below
+
+  registerServiceWorker();
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  // Lightweight formatting: **bold**, *italic*, "- " bullets.
+  // Text is escaped first so nothing typed as a note can inject HTML.
+  // Backslash-prefixed math/science shorthand -> the actual symbol.
+  // Used by both the sqrt/superscript/subscript handling above and by
+  // renderFormatted below. Kept in one place so notes.html and quiz.html
+  // (which has its own identical copy) support exactly the same syntax.
+  const MATH_SYMBOLS = {
+    "\\alpha": "α", "\\beta": "β", "\\gamma": "γ", "\\delta": "δ", "\\theta": "θ",
+    "\\pi": "π", "\\sigma": "σ", "\\omega": "ω", "\\lambda": "λ", "\\mu": "μ", "\\phi": "φ",
+    "\\Delta": "Δ", "\\Sigma": "Σ", "\\Omega": "Ω", "\\Theta": "Θ", "\\Pi": "Π", "\\Phi": "Φ",
+    "\\times": "×", "\\div": "÷", "\\pm": "±", "\\mp": "∓",
+    "\\deg": "°", "\\infty": "∞",
+    "\\ne": "≠", "\\le": "≤", "\\ge": "≥", "\\approx": "≈", "\\propto": "∝",
+    "\\to": "→", "\\rightarrow": "→", "\\leftarrow": "←", "\\leftrightarrow": "↔"
+  };
+
+  function renderFormatted(str) {
+    let safe = escapeHtml(str);
+    // Content written before this notation system existed sometimes used
+    // raw HTML tags directly (e.g. typing "<u>word</u>" by hand) — after
+    // escaping above, those show up as visible "&lt;u&gt;" text instead of
+    // actually underlining anything. This un-escapes just this small safe
+    // list of simple formatting tags (no attributes, so nothing unsafe
+    // slips through) so old content renders correctly with no rewriting.
+    ["u", "b", "i", "strong", "em"].forEach((tag) => {
+      safe = safe.replace(new RegExp(`&lt;${tag}&gt;`, "gi"), `<${tag}>`);
+      safe = safe.replace(new RegExp(`&lt;/${tag}&gt;`, "gi"), `</${tag}>`);
+    });
+    // Math notation: turns plain-text math markup into readable symbols,
+    // so notes can be typed as "sqrt(16)" or "\sqrt{16}" instead of having
+    // to spell everything out in words.
+    //   \sqrt{16} or sqrt(16)   ->  √16 (overline showing what's under the root)
+    //   \frac{a}{b}             ->  a⁄b (stacked as super/subscript around a slash)
+    //   x^2 or x^(2y)           ->  superscript
+    //   x_2 or x_(2y)           ->  subscript
+    //   \alpha \beta \pi \Delta ->  Greek letters (see MATH_SYMBOLS above for the full list)
+    //   \times \div \pm \deg    ->  × ÷ ± °
+    //   -> or \to               ->  →
+    // Plain unicode math symbols typed directly (√, ², ½, π, °, etc.) already
+    // display correctly with no changes needed — this just adds support for
+    // the plain-text/LaTeX-style shorthand admins are more likely to type.
+    safe = safe.replace(/\\sqrt\{([^{}]+)\}/g, '√<span style="text-decoration:overline;">$1</span>');
+    safe = safe.replace(/sqrt\(([^()]+)\)/g, '√<span style="text-decoration:overline;">$1</span>');
+    safe = safe.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "<sup>$1</sup>⁄<sub>$2</sub>");
+    safe = safe.replace(/\^\(([^()]+)\)/g, "<sup>$1</sup>");
+    safe = safe.replace(/\^([A-Za-z0-9])/g, "<sup>$1</sup>");
+    safe = safe.replace(/_\(([^()]+)\)/g, "<sub>$1</sub>");
+    safe = safe.replace(/_([A-Za-z0-9])/g, "<sub>$1</sub>");
+    safe = safe.replace(/(\d+)\s?deg\b/gi, "$1°");
+    safe = safe.replace(/->/g, "→");
+    safe = safe.replace(/\\[A-Za-z]+/g, (m) => MATH_SYMBOLS[m] || m);
+    safe = safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    safe = safe.replace(/__(.+?)__/g, "<u>$1</u>");
+    safe = safe.replace(/\*(.+?)\*/g, "<em>$1</em>");
+    safe = safe.replace(/(^|\n)- (.+)/g, "$1• $2");
+    return safe;
+  }
+
+  // Basic copy deterrents. Note: nothing rendered in a browser can be made
+  // 100% uncopyable — a determined person can still use dev tools or a
+  // screenshot. This just removes the easy, casual ways to lift content.
+  document.addEventListener("contextmenu", (e) => {
+    if (e.target.closest("main")) e.preventDefault();
+  });
+  document.addEventListener("copy", (e) => {
+    if (window.getSelection().anchorNode && document.getElementById("notesList")?.contains(window.getSelection().anchorNode)) {
+      e.preventDefault();
+    }
+  });
+
+  // Splits a note's body around [diagram:N] placeholders and interleaves
+  // the matching diagram image (with its caption) at that exact point —
+  // so a physics/math explanation can show a diagram right where it's
+  // discussed, not just dumped at the end. Any diagram never referenced
+  // this way still shows up, appended after the text, so an upload never
+  // silently goes missing just because the placeholder was left out.
+  function renderNoteBody(note) {
+    const diagrams = Array.isArray(note.diagram_images) ? note.diagram_images : [];
+    const usedIndexes = new Set();
+    const placeholderRe = /\[diagram:(\d+)\]/g;
+
+    let html = "";
+    let lastIndex = 0;
+    let match;
+    while ((match = placeholderRe.exec(note.body)) !== null) {
+      html += renderFormatted(note.body.slice(lastIndex, match.index));
+      const diagramIndex = parseInt(match[1], 10) - 1;
+      const diagram = diagrams[diagramIndex];
+      if (diagram && diagram.url) {
+        usedIndexes.add(diagramIndex);
+        html += `<figure class="note-diagram"><img src="${diagram.url}" alt="${escapeHtml(diagram.caption || note.title)}">${diagram.caption ? `<figcaption>${escapeHtml(diagram.caption)}</figcaption>` : ""}</figure>`;
+      }
+      lastIndex = placeholderRe.lastIndex;
+    }
+    html += renderFormatted(note.body.slice(lastIndex));
+
+    diagrams.forEach((diagram, i) => {
+      if (usedIndexes.has(i) || !diagram || !diagram.url) return;
+      html += `<figure class="note-diagram"><img src="${diagram.url}" alt="${escapeHtml(diagram.caption || note.title)}">${diagram.caption ? `<figcaption>${escapeHtml(diagram.caption)}</figcaption>` : ""}</figure>`;
+    });
+
+    return html;
+  }
+
+  // ---- View state: a plain list of topics, or one topic open at a time ----
+  let allNotes = [];
+  let view = "list";      // 'list' | 'detail'
+  let openNoteId = null;
+  let userIsPremium = false;
+  let unlockedNoteIds = new Set(); // individual notes unlocked via referral topic credits
+  let searchQuery = "";
+
+  function isNoteLocked(note) {
+    return note.is_locked && !userIsPremium && !unlockedNoteIds.has(note.id);
+  }
+
+  function renderList() {
+    const list = document.getElementById("notesList");
+    if (!allNotes.length) {
+      list.innerHTML = `<div class="empty-state"><div class="glyph">📭</div><p>No notes have been added for ${escapeHtml(subject.name)} yet.</p></div>`;
+      return;
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+    const visibleNotes = q ? allNotes.filter(n => n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q)) : allNotes;
+
+    const searchHtml = `<input type="text" class="note-search" id="noteSearchInput" placeholder="Search ${escapeHtml(subject.name)} topics…" value="${escapeHtml(searchQuery)}">`;
+
+    if (!visibleNotes.length) {
+      list.innerHTML = searchHtml + `<div class="empty-state"><div class="glyph">🔍</div><p>No topics match "${escapeHtml(searchQuery)}".</p></div>`;
+      return;
+    }
+
+    list.innerHTML = searchHtml + visibleNotes.map(n => {
+      const isLocked = isNoteLocked(n);
+      return `
+        <div class="note-list-card ${isLocked ? "locked" : ""}" data-open="${n.id}">
+          <h3>${escapeHtml(n.title)}</h3>
+          ${isLocked
+            ? `<span class="lock-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg> Premium</span>`
+            : `<span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span>`}
+        </div>
+      `;
+    }).join("");
+  }
+
+  // Re-renders the list on every keystroke (which replaces the search
+  // input element and would normally lose focus/cursor position), then
+  // restores focus and cursor position right after.
+  function handleSearchInput(inputEl) {
+    const cursorPos = inputEl.selectionStart;
+    searchQuery = inputEl.value;
+    renderList();
+    const newInput = document.getElementById("noteSearchInput");
+    if (newInput) {
+      newInput.focus();
+      newInput.setSelectionRange(cursorPos, cursorPos);
+    }
+  }
+
+  // Pulls the 11-char video ID out of any common YouTube URL shape
+  // (watch?v=, youtu.be/, /embed/, /shorts/) so we can build an embed
+  // URL regardless of which format the link was pasted in.
+  function extractYouTubeId(url) {
+    if (!url) return null;
+    try {
+      const u = new URL(url);
+      if (u.hostname.includes("youtu.be")) return u.pathname.slice(1).split("/")[0] || null;
+      if (u.hostname.includes("youtube.com")) {
+        if (u.searchParams.get("v")) return u.searchParams.get("v");
+        const m = u.pathname.match(/\/(embed|shorts)\/([^/?]+)/);
+        if (m) return m[2];
+      }
+    } catch (_err) {
+      // Not a valid URL — fall through to null
+    }
+    return null;
+  }
+
+  function renderDetail(note) {
+    const list = document.getElementById("notesList");
+    const videoId = extractYouTubeId(note.video_url);
+    list.innerHTML = `
+      <button class="note-detail-back" data-close-note>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        All ${escapeHtml(subject.name)} topics
+      </button>
+      <div class="note-detail-card">
+        <h2>${escapeHtml(note.title)}</h2>
+        <div class="note-body">${renderNoteBody(note)}</div>
+        ${videoId ? `
+          <div class="note-video-label">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23 12s0-3.6-.46-5.3a3 3 0 00-2.1-2.1C18.9 4 12 4 12 4s-6.9 0-8.44.6a3 3 0 00-2.1 2.1C1 8.4 1 12 1 12s0 3.6.46 5.3a3 3 0 002.1 2.1C5.1 20 12 20 12 20s6.9 0 8.44-.6a3 3 0 002.1-2.1C23 15.6 23 12 23 12z"/><path fill="#0d0d0f" d="M10 15.5l6-3.5-6-3.5v7z"/></svg>
+            Explanation video
+          </div>
+          <div class="note-video-wrap">
+            <iframe src="https://www.youtube-nocookie.com/embed/${videoId}" title="Explanation video for ${escapeHtml(note.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>
+          </div>
+        ` : ""}
+      </div>
+    `;
+    window.scrollTo({ top: 0 });
+  }
+
+  function openNote(id) {
+    const note = allNotes.find(n => n.id === id);
+    if (!note) return;
+    if (isNoteLocked(note)) {
+      window.location.href = "upgrade.html";
+      return;
+    }
+    openNoteId = id;
+    view = "detail";
+    renderDetail(note);
+    // Only watermark actual premium content, not free notes — this is
+    // the content actually worth protecting from being screenshotted
+    // and passed around outside a paying account.
+    if (note.is_locked) applyContentWatermark();
+  }
+
+  function closeNote() {
+    view = "list";
+    openNoteId = null;
+    renderList();
+    document.getElementById("contentWatermark")?.remove();
+  }
+
+  document.getElementById("notesList").addEventListener("click", (e) => {
+    const openBtn = e.target.closest("[data-open]");
+    if (openBtn) { openNote(openBtn.dataset.open); return; }
+    if (e.target.closest("[data-close-note]")) { closeNote(); }
+  });
+
+  document.getElementById("notesList").addEventListener("input", (e) => {
+    if (e.target.id === "noteSearchInput") handleSearchInput(e.target);
+  });
+
+  // Back button: leaves the notes list entirely when in list view,
+  // but just closes the open topic (staying on this page) when one is open.
+  document.getElementById("backBtn").addEventListener("click", () => {
+    if (view === "detail") {
+      closeNote();
+    } else {
+      window.location.href = subject ? `subject.html?id=${encodeURIComponent(subject.id)}` : "classroom-dashboard.html";
+    }
+  });
+
+  function renderNotes(notes) {
+    allNotes = notes;
+    view = "list";
+    openNoteId = null;
+    renderList();
+  }
+
+  (async () => {
+    const user = await requireUser();
+    if (!user) return;
+
+    const activeLevel = await getActiveClassLevel();
+    const subjects = await getSubjects(activeLevel);
+    subject = subjects.find(s => s.id === subjectId);
+
+    if (!subject) {
+      window.location.href = "classroom-dashboard.html";
+      return;
+    }
+
+    document.getElementById("pageTitle").textContent = subject.name + " Notes";
+    userIsPremium = await isPremiumUser(activeLevel);
+
+    // Individually-unlocked topics from referral rewards — harmless if
+    // the referral system (schema-referrals.sql) hasn't been run yet,
+    // just means nothing shows as unlocked this way.
+    try {
+      const { data: unlocks } = await supabaseClient.from("note_unlocks").select("note_id");
+      if (unlocks) unlockedNoteIds = new Set(unlocks.map(u => u.note_id));
+    } catch (err) {
+      // Referral system not set up yet — fine, just means no per-topic unlocks apply.
+    }
+
+    if (!navigator.onLine) {
+      document.getElementById("offlineBanner").hidden = false;
+      const cached = await offlineStore.getNotes(subject.id);
+      renderNotes(cached || []);
+      return;
+    }
+
+    const { data, error } = await supabaseClient
+      .from("notes")
+      .select("*")
+      .eq("subject_id", subject.id)
+      .eq("class_level", activeLevel)
+      .order("display_order", { ascending: true });
+
+    if (error) {
+      // Network hiccup even though we appear online — fall back to cache
+      const cached = await offlineStore.getNotes(subject.id);
+      renderNotes(cached || []);
+      return;
+    }
+
+    await offlineStore.cacheNotes(subject.id, data);
+    renderNotes(data);
+  })();
+</script>
+
+</body>
+</html>
